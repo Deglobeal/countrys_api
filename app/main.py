@@ -6,9 +6,13 @@ from typing import Optional, List
 import os
 from datetime import datetime, timezone
 
-# Use relative imports
-from .database import get_db, engine, Base, test_connection
-from . import models, schemas, services, utils, crud
+# Use absolute imports
+from database import get_db, engine, Base, test_connection
+import models
+import schemas
+import services
+import utils
+import crud
 
 # Create database tables
 def create_tables():
@@ -73,7 +77,7 @@ def root():
         }
     }
 
-# All your endpoints here (refresh, get_countries, get_country, delete_country, status, image)
+# Refresh countries endpoint
 @app.post(
     "/countries/refresh",
     response_model=schemas.RefreshResponse,
