@@ -2,100 +2,62 @@ import os
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker, declarative_base
 from dotenv import load_dotenv
-import logging
-
-logger = logging.getLogger(__name__)
 
 # Load environment variables
 load_dotenv()
 
 def get_database_url():
-    """Get database URL from Railway MySQL environment variables"""
+    """Get database URL from environment variables"""
     
-    # Debug: Print all MYSQL-related environment variables
-    print("=== DEBUG: Checking environment variables ===")
-    for key, value in os.environ.items():
-        if 'MYSQL' in key or 'DATABASE' in key:
-            print(f"{key}: {value}")
+    print("=== Checking Database Configuration ===")
     
-    # Priority 1: Use Railway's MYSQL_URL
-    mysql_url = os.getenv("MYSQL_URL")
-    print(f"MYSQL_URL found: {mysql_url is not None}")
-    if mysql_url:
-        # Convert mysql:// to mysql+pymysql:// for SQLAlchemy
-        if mysql_url.startswith("mysql://"):
-            mysql_url = mysql_url.replace("mysql://", "mysql+pymysql://", 1)
-        print(f"Using MYSQL_URL: {mysql_url}")
-        return mysql_url
+    # Priority 1: Use DATABASE_URL (the one you just set)
+    database_url = os.getenv("DATABASE_URL")
+    if database_url:
+        print("✅ Using DATABASE_URL from environment")
+        if database_url.startswith("mysql://"):
+            database_url = database_url.replace("mysql://", "mysql+pymysql://", 1)
+        return database_url
     
-    # Priority 2: Use MYSQL_PUBLIC_URL (external connection)
-    mysql_public_url = os.getenv("MYSQL_PUBLIC_URL")
-    print(f"MYSQL_PUBLIC_URL found: {mysql_public_url is not None}")
-    if mysql_public_url:
-        if mysql_public_url.startswith("mysql://"):
-            mysql_public_url = mysql_public_url.replace("mysql://", "mysql+pymysql://", 1)
-        print(f"Using MYSQL_PUBLIC_URL: {mysql_public_url}")
-        return mysql_public_url
+    # Priority 2: Use individual MYSQL environment variables
+    # Note: Railway uses MYSQLHOST, MYSQLUSER, MYSQLPASSWORD, MYSQLDATABASE (no underscores)
+    mysql_user = os.getenv("MYSQLUSER", "root")
+    mysql_password = os.getenv("MYSQLPASSWORD")
+    mysql_host = os.getenv("MYSQLHOST")
+    mysql_port = os.getenv("MYSQLPORT", "3306")
+    mysql_database = os.getenv("MYSQLDATABASE", "railway")
     
-    # Priority 3: Use individual MYSQL* environment variables
-    MYSQL_USER = os.getenv("MYSQLUSER", "root")
-    MYSQL_PASSWORD = os.getenv("MYSQLPASSWORD")
-    MYSQL_HOST = os.getenv("MYSQLHOST")
-    MYSQL_PORT = os.getenv("MYSQLPORT", "3306")
-    MYSQL_DATABASE = os.getenv("MYSQLDATABASE", "railway")
+    print(f"MYSQLHOST: {mysql_host}")
+    print(f"MYSQLUSER: {mysql_user}")
+    print(f"MYSQLPASSWORD: {'*' * len(mysql_password) if mysql_password else 'None'}")
+    print(f"MYSQLPORT: {mysql_port}")
+    print(f"MYSQLDATABASE: {mysql_database}")
     
-    print(f"MYSQL_USER: {MYSQL_USER}")
-    print(f"MYSQL_PASSWORD: {'*' * len(MYSQL_PASSWORD) if MYSQL_PASSWORD else 'None'}")
-    print(f"MYSQL_HOST: {MYSQL_HOST}")
-    print(f"MYSQL_PORT: {MYSQL_PORT}")
-    print(f"MYSQL_DATABASE: {MYSQL_DATABASE}")
-    
-    if all([MYSQL_USER, MYSQL_PASSWORD, MYSQL_HOST, MYSQL_PORT, MYSQL_DATABASE]):
-        db_url = f"mysql+pymysql://{MYSQL_USER}:{MYSQL_PASSWORD}@{MYSQL_HOST}:{MYSQL_PORT}/{MYSQL_DATABASE}"
-        print(f"Using individual MYSQL* variables: {db_url}")
+    if all([mysql_user, mysql_password, mysql_host, mysql_port, mysql_database]):
+        db_url = f"mysql+pymysql://{mysql_user}:{mysql_password}@{mysql_host}:{mysql_port}/{mysql_database}"
+        print(f"✅ Using individual MYSQL* variables: {db_url}")
         return db_url
     
-    # Priority 4: Fallback to original DATABASE_URL or DB_* variables
-    railway_db_url = os.getenv("DATABASE_URL")
-    print(f"DATABASE_URL found: {railway_db_url is not None}")
-    if railway_db_url:
-        if railway_db_url.startswith("mysql://"):
-            railway_db_url = railway_db_url.replace("mysql://", "mysql+pymysql://", 1)
-        print(f"Using DATABASE_URL: {railway_db_url}")
-        return railway_db_url
+    # Priority 3: Try alternative variable names (with underscores)
+    mysql_user_alt = os.getenv("MYSQL_USER", "root")
+    mysql_password_alt = os.getenv("MYSQL_PASSWORD")
+    mysql_host_alt = os.getenv("MYSQL_HOST")
+    mysql_port_alt = os.getenv("MYSQL_PORT", "3306")
+    mysql_database_alt = os.getenv("MYSQL_DATABASE", "railway")
     
-    # Priority 5: Use individual DB_* environment variables
-    DB_USER = os.getenv("DB_USER")
-    DB_PASSWORD = os.getenv("DB_PASSWORD")
-    DB_HOST = os.getenv("DB_HOST")
-    DB_PORT = os.getenv("DB_PORT")
-    DB_NAME = os.getenv("DB_NAME")
-    
-    print(f"DB_USER: {DB_USER}")
-    print(f"DB_PASSWORD: {'*' * len(DB_PASSWORD) if DB_PASSWORD else 'None'}")
-    print(f"DB_HOST: {DB_HOST}")
-    print(f"DB_PORT: {DB_PORT}")
-    print(f"DB_NAME: {DB_NAME}")
-    
-    if all([DB_USER, DB_PASSWORD, DB_HOST, DB_PORT, DB_NAME]):
-        db_url = f"mysql+pymysql://{DB_USER}:{DB_PASSWORD}@{DB_HOST}:{DB_PORT}/{DB_NAME}"
-        print(f"Using individual DB_* variables: {db_url}")
+    if all([mysql_user_alt, mysql_password_alt, mysql_host_alt, mysql_port_alt, mysql_database_alt]):
+        db_url = f"mysql+pymysql://{mysql_user_alt}:{mysql_password_alt}@{mysql_host_alt}:{mysql_port_alt}/{mysql_database_alt}"
+        print(f"✅ Using individual MYSQL_* variables: {db_url}")
         return db_url
     
-    # No database configuration found
-    print("=== ERROR: No database configuration found ===")
-    raise ValueError(
-        "No database configuration found. "
-        "Please set MYSQL_URL, DATABASE_URL, or all individual MYSQL* environment variables."
-    )
+    # Priority 4: Hardcoded fallback
+    print("⚠️ Using hardcoded fallback database URL")
+    return "mysql+pymysql://root:RbTPPtfUFcRMPILnOJLVSpOpdGDgUJVc@mysql.railway.internal:3306/railway"
 
 # Get the database URL
-try:
-    DATABASE_URL = get_database_url()
-    print(f"✅ Final DATABASE_URL: {DATABASE_URL}")
-except Exception as e:
-    print(f"❌ Error getting DATABASE_URL: {e}")
-    raise
+DATABASE_URL = get_database_url()
+
+print(f"🎯 Final DATABASE_URL: {DATABASE_URL}")
 
 # Create engine
 engine = create_engine(DATABASE_URL, echo=True)
