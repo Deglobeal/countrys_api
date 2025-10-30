@@ -11,8 +11,8 @@ router = APIRouter()
 @router.post("/countries/refresh")
 def refresh_countries(db: Session = Depends(get_db)):
     try:
-        countries_data = utils.fetch_countries()
-        exchange_data = utils.fetch_exchange_rates()
+        countries_data = utils.fetch_countries() # type: ignore
+        exchange_data = utils.fetch_exchange_rates() # type: ignore
     except Exception as e:
         raise HTTPException(status_code=503, detail={"error": "External data source unavailable", "details": str(e)})
 
@@ -26,18 +26,18 @@ def refresh_countries(db: Session = Depends(get_db)):
         currency_list = c.get("currencies", [])
         currency_code = currency_list[0]["code"] if currency_list else None
         exchange_rate = exchange_data.get(currency_code) if currency_code in exchange_data else None
-        gdp = utils.compute_gdp(population, exchange_rate) if exchange_rate else 0
+        gdp = utils.compute_gdp(population, exchange_rate) if exchange_rate else 0 # type: ignore
 
         existing = db.query(models.Country).filter(models.Country.name.ilike(name)).first()
         if existing:
             existing.capital = capital
             existing.region = region
             existing.population = population
-            existing.currency_code = currency_code
-            existing.exchange_rate = exchange_rate
-            existing.estimated_gdp = gdp
+            existing.currency_code = currency_code # type: ignore
+            existing.exchange_rate = exchange_rate # pyright: ignore[reportAttributeAccessIssue]
+            existing.estimated_gdp = gdp # type: ignore
             existing.flag_url = flag_url
-            existing.last_refreshed_at = datetime.utcnow()
+            existing.last_refreshed_at = datetime.utcnow() # type: ignore
         else:
             db.add(models.Country(
                 name=name,
@@ -64,7 +64,7 @@ def refresh_countries(db: Session = Depends(get_db)):
     return {"message": f"{count} countries refreshed successfully"}
 
 @router.get("/countries")
-def get_countries(region: str = None, currency: str = None, sort: str = None, db: Session = Depends(get_db)):
+def get_countries(region: str = None, currency: str = None, sort: str = None, db: Session = Depends(get_db)): # type: ignore
     query = db.query(models.Country)
     if region:
         query = query.filter(models.Country.region.ilike(region))

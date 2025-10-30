@@ -120,7 +120,7 @@ def get_countries(
         "population_asc": "population_asc"
     }
     
-    sort_by = sort_mapping.get(sort)
+    sort_by = sort_mapping.get(sort) # type: ignore
     
     countries = crud.get_countries(
         db, 
