@@ -6,12 +6,9 @@ from typing import Optional, List
 import os
 from datetime import datetime, timezone
 
-# Import database and models first to ensure tables are created
-from .database import get_db, engine, Base
-from . import models
-
-# Import other modules
-from . import schemas, services, utils, crud
+# Use relative imports
+from .database import get_db, engine, Base, test_connection
+from . import models, schemas, services, utils, crud
 
 # Create database tables
 def create_tables():
@@ -60,15 +57,13 @@ def health_check():
         "service": "Country Currency & Exchange API"
     }
 
-# Root endpoint with API documentation
+# Root endpoint
 @app.get("/")
 def root():
     return {
         "message": "Country Currency & Exchange API",
         "version": "1.0.0",
-        "docs": "Visit /docs for interactive API documentation",
         "endpoints": {
-            "health": "GET /health",
             "refresh": "POST /countries/refresh",
             "get_countries": "GET /countries",
             "get_country": "GET /countries/{name}", 
@@ -78,7 +73,7 @@ def root():
         }
     }
 
-# All your existing endpoints here (refresh, get_countries, etc.)
+# All your endpoints here (refresh, get_countries, get_country, delete_country, status, image)
 @app.post(
     "/countries/refresh",
     response_model=schemas.RefreshResponse,
