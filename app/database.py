@@ -7,16 +7,40 @@ from dotenv import load_dotenv
 load_dotenv()
 
 def get_database_url():
-    """Get database URL, preferring Railway's DATABASE_URL"""
-    # Priority 1: Use Railway's DATABASE_URL
+    """Get database URL from Railway MySQL environment variables"""
+    # Priority 1: Use Railway's MYSQL_URL
+    mysql_url = os.getenv("MYSQL_URL")
+    if mysql_url:
+        # Convert mysql:// to mysql+pymysql:// for SQLAlchemy
+        if mysql_url.startswith("mysql://"):
+            mysql_url = mysql_url.replace("mysql://", "mysql+pymysql://", 1)
+        return mysql_url
+    
+    # Priority 2: Use MYSQL_PUBLIC_URL (external connection)
+    mysql_public_url = os.getenv("MYSQL_PUBLIC_URL")
+    if mysql_public_url:
+        if mysql_public_url.startswith("mysql://"):
+            mysql_public_url = mysql_public_url.replace("mysql://", "mysql+pymysql://", 1)
+        return mysql_public_url
+    
+    # Priority 3: Use individual MYSQL* environment variables
+    MYSQL_USER = os.getenv("MYSQLUSER", "root")
+    MYSQL_PASSWORD = os.getenv("MYSQLPASSWORD")
+    MYSQL_HOST = os.getenv("MYSQLHOST")
+    MYSQL_PORT = os.getenv("MYSQLPORT", "3306")
+    MYSQL_DATABASE = os.getenv("MYSQLDATABASE", "railway")
+    
+    if all([MYSQL_USER, MYSQL_PASSWORD, MYSQL_HOST, MYSQL_PORT, MYSQL_DATABASE]):
+        return f"mysql+pymysql://{MYSQL_USER}:{MYSQL_PASSWORD}@{MYSQL_HOST}:{MYSQL_PORT}/{MYSQL_DATABASE}"
+    
+    # Priority 4: Fallback to original DATABASE_URL or DB_* variables
     railway_db_url = os.getenv("DATABASE_URL")
     if railway_db_url:
-        # Convert mysql:// to mysql+pymysql:// for SQLAlchemy
         if railway_db_url.startswith("mysql://"):
             railway_db_url = railway_db_url.replace("mysql://", "mysql+pymysql://", 1)
         return railway_db_url
     
-    # Priority 2: Use individual environment variables
+    # Priority 5: Use individual DB_* environment variables
     DB_USER = os.getenv("DB_USER")
     DB_PASSWORD = os.getenv("DB_PASSWORD")
     DB_HOST = os.getenv("DB_HOST")
@@ -29,7 +53,7 @@ def get_database_url():
     # No database configuration found
     raise ValueError(
         "No database configuration found. "
-        "Please set either DATABASE_URL or all individual DB_* environment variables."
+        "Please set MYSQL_URL, DATABASE_URL, or all individual MYSQL* environment variables."
     )
 
 # Get the database URL
