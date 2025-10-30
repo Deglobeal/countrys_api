@@ -6,13 +6,19 @@ from typing import Optional, List
 import os
 from datetime import datetime, timezone
 
-# Use absolute imports
-from database import get_db, engine, Base, test_connection
-import models
-import schemas
-import services
-import utils
-import crud
+# Import from current directory
+try:
+    from database import get_db, engine, Base, test_connection
+    import models
+    import schemas
+    import services
+    import utils
+    import crud
+except ImportError as e:
+    print(f"Import error: {e}")
+    # Fallback imports
+    from .database import get_db, engine, Base, test_connection
+    from . import models, schemas, services, utils, crud
 
 # Create database tables
 def create_tables():
@@ -80,7 +86,6 @@ def root():
 # Refresh countries endpoint
 @app.post(
     "/countries/refresh",
-    response_model=schemas.RefreshResponse,
     status_code=status.HTTP_200_OK
 )
 def refresh_countries(db: Session = Depends(get_db)):
@@ -130,7 +135,7 @@ def refresh_countries(db: Session = Depends(get_db)):
             }
         )
 
-@app.get("/countries", response_model=List[schemas.CountryResponse])
+@app.get("/countries")
 def get_countries(
     region: Optional[str] = Query(None),
     currency: Optional[str] = Query(None),
@@ -145,7 +150,7 @@ def get_countries(
         "population_asc": "population_asc"
     }
     
-    sort_by = sort_mapping.get(sort) # type: ignore
+    sort_by = sort_mapping.get(sort)
     
     countries = crud.get_countries(
         db, 
@@ -156,7 +161,7 @@ def get_countries(
     
     return countries
 
-@app.get("/countries/{name}", response_model=schemas.CountryResponse)
+@app.get("/countries/{name}")
 def get_country(name: str, db: Session = Depends(get_db)):
     """Get specific country by name"""
     country = crud.get_country_by_name(db, name)
@@ -177,7 +182,7 @@ def delete_country(name: str, db: Session = Depends(get_db)):
     
     return {"message": f"Country {name} deleted successfully"}
 
-@app.get("/status", response_model=schemas.StatusResponse)
+@app.get("/status")
 def get_status(db: Session = Depends(get_db)):
     """Get API status"""
     total_countries = crud.get_countries_count(db)
