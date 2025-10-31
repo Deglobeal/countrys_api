@@ -1,65 +1,83 @@
 from fastapi import FastAPI, Depends, HTTPException, Query, status
-from fastapi.responses import FileResponse, JSONResponse
+from fastapi.responses import FileResponse
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy.orm import Session
-from typing import Optional, List
+from typing import Optional
 import os
 from datetime import datetime, timezone
 
 # Import from current directory - use absolute imports
-from database import get_db, engine, Base, test_connection
+from database import get_db, engine, Base, test_connection # type: ignore
 import models
 import schemas
 import services
 import utils
 import crud
 
-# Create database tables
-def create_tables():
-    try:
-        Base.metadata.create_all(bind=engine)
-        print("✅ Database tables created successfully")
-        return True
-    except Exception as e:
-        print(f"❌ Error creating tables: {e}")
-        return False
-
+# Create FastAPI app
 app = FastAPI(
     title="Country Currency & Exchange API",
     description="A RESTful API for country data with currency exchange rates and GDP calculations",
-    version="1.0.0",
-    docs_url="/",
-    redoc_url=None
-)
-
-# Add CORS middleware
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=["*"],
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
+    version="1.0.0"
 )
 
 @app.on_event("startup")
-def startup_event():
+async def startup_event():
+    """Run on application startup"""
+    print("🚀 Starting Country Currency & Exchange API...")
+    
     # Create cache directory
     os.makedirs("cache", exist_ok=True)
-    # Create database tables
-    tables_created = create_tables()
-    if tables_created:
-        print("🚀 Application started successfully")
+    
+    # Test database connection
+    db_connected = test_connection()
+    if db_connected:
+        print("✅ Database connected successfully")
+        
+        # Create tables
+        try:
+            Base.metadata.create_all(bind=engine)
+            print("✅ Database tables created successfully")
+        except Exception as e:
+            print(f"❌ Error creating tables: {e}")
     else:
-        print("⚠️  Application started with database warnings")
+        print("❌ Database connection failed")
 
-# Health check endpoint
-@app.get("/health")
-def health_check():
+@app.get("/")
+def read_root():
     return {
-        "status": "healthy", 
+        "message": "Country Currency & Exchange API",
+        "version": "1.0.0",
+        "status": "running",
+        "timestamp": datetime.now(timezone.utc)
+    }
+
+@app.get("/health")
+def health_check(db: Session = Depends(get_db)):
+    """Health check endpoint"""
+    try:
+        # Test database connection
+        db.execute("SELECT 1") # type: ignore
+        db_status = "connected"
+    except Exception as e:
+        db_status = f"error: {str(e)}"
+    
+    return {
+        "status": "healthy",
+        "database": db_status,
         "timestamp": datetime.now(timezone.utc),
         "service": "Country Currency & Exchange API"
     }
+
+@app.get("/test-db")
+def test_db_connection(db: Session = Depends(get_db)):
+    """Test database connection endpoint"""
+    try:
+        result = db.execute("SELECT 1") # type: ignore
+        return {"database": "connected", "test_query": "success"}
+    except Exception as e:
+        return {"database": "error", "error": str(e)}
+
 
 # Root endpoint
 @app.get("/")
@@ -144,7 +162,7 @@ def get_countries(
         "population_asc": "population_asc"
     }
     
-    sort_by = sort_mapping.get(sort)
+    sort_by = sort_mapping.get(sort) # type: ignore
     
     countries = crud.get_countries(
         db, 

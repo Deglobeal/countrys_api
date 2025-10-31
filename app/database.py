@@ -11,16 +11,15 @@ def get_database_url():
     
     print("=== Checking Database Configuration ===")
     
-    # Priority 1: Use DATABASE_URL (the one you just set)
-    database_url = os.getenv("DATABASE_URL")
-    if database_url:
-        print("✅ Using DATABASE_URL from environment")
-        if database_url.startswith("mysql://"):
-            database_url = database_url.replace("mysql://", "mysql+pymysql://", 1)
-        return database_url
+    # Priority 1: Use Railway's MYSQL_URL
+    mysql_url = os.getenv("MYSQL_URL")
+    if mysql_url:
+        print("✅ Using MYSQL_URL from Railway environment")
+        if mysql_url.startswith("mysql://"):
+            mysql_url = mysql_url.replace("mysql://", "mysql+pymysql://", 1)
+        return mysql_url
     
-    # Priority 2: Use individual MYSQL environment variables
-    # Note: Railway uses MYSQLHOST, MYSQLUSER, MYSQLPASSWORD, MYSQLDATABASE (no underscores)
+    # Priority 2: Use individual MySQL variables from Railway
     mysql_user = os.getenv("MYSQLUSER", "root")
     mysql_password = os.getenv("MYSQLPASSWORD")
     mysql_host = os.getenv("MYSQLHOST")
@@ -38,29 +37,23 @@ def get_database_url():
         print(f"✅ Using individual MYSQL* variables: {db_url}")
         return db_url
     
-    # Priority 3: Try alternative variable names (with underscores)
-    mysql_user_alt = os.getenv("MYSQL_USER", "root")
-    mysql_password_alt = os.getenv("MYSQL_PASSWORD")
-    mysql_host_alt = os.getenv("MYSQL_HOST")
-    mysql_port_alt = os.getenv("MYSQL_PORT", "3306")
-    mysql_database_alt = os.getenv("MYSQL_DATABASE", "railway")
-    
-    if all([mysql_user_alt, mysql_password_alt, mysql_host_alt, mysql_port_alt, mysql_database_alt]):
-        db_url = f"mysql+pymysql://{mysql_user_alt}:{mysql_password_alt}@{mysql_host_alt}:{mysql_port_alt}/{mysql_database_alt}"
-        print(f"✅ Using individual MYSQL_* variables: {db_url}")
-        return db_url
-    
-    # Priority 4: Hardcoded fallback
-    print("⚠️ Using hardcoded fallback database URL")
-    return "mysql+pymysql://root:RbTPPtfUFcRMPILnOJLVSpOpdGDgUJVc@mysql.railway.internal:3306/railway"
+    # Priority 3: Fallback to local SQLite for testing
+    print("⚠️ Using SQLite fallback database")
+    return "sqlite:///./test.db"
 
 # Get the database URL
 DATABASE_URL = get_database_url()
 
 print(f"🎯 Final DATABASE_URL: {DATABASE_URL}")
 
-# Create engine
-engine = create_engine(DATABASE_URL, echo=True)
+# Create engine with connection pooling and timeout settings
+engine = create_engine(
+    DATABASE_URL, 
+    echo=True,
+    pool_pre_ping=True,  # Verify connections before using them
+    pool_recycle=300,    # Recycle connections after 5 minutes
+    connect_args={"connect_timeout": 10}  # 10 second connection timeout
+)
 
 # Create session
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
@@ -77,11 +70,11 @@ def get_db():
         db.close()
 
 def test_connection():
-    """Simple test to verify connection"""
+    """Test database connection"""
     try:
         with engine.connect() as conn:
             print("✅ Database connection successful!")
             return True
     except Exception as e:
-        print("❌ Connection failed:", e)
+        print(f"❌ Database connection failed: {e}")
         return False
