@@ -1,24 +1,17 @@
 from fastapi import FastAPI, Depends, HTTPException, Query, status
-from fastapi.responses import FileResponse, JSONResponse
+from fastapi.responses import FileResponse
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy.orm import Session
-from typing import Optional, List
+from typing import Optional
 import os
 from datetime import datetime, timezone
+from database import get_db, engine, Base, test_connection
+import models
+import schemas
+import services
+import utils
+import crud
 
-# Import from current directory
-try:
-    from database import get_db, engine, Base, test_connection
-    import models
-    import schemas
-    import services
-    import utils
-    import crud
-except ImportError as e:
-    print(f"Import error: {e}")
-    # Fallback imports
-    from .database import get_db, engine, Base, test_connection
-    from . import models, schemas, services, utils, crud
 
 # Create database tables
 def create_tables():
@@ -150,7 +143,7 @@ def get_countries(
         "population_asc": "population_asc"
     }
     
-    sort_by = sort_mapping.get(sort)
+    sort_by = sort_mapping.get(sort) # type: ignore
     
     countries = crud.get_countries(
         db, 
