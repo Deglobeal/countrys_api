@@ -1,7 +1,7 @@
 from sqlalchemy import Column, Integer, String, DateTime, Float, Text
 from datetime import datetime
 import pytz
-from .database import Base
+from database import Base
 
 class Country(Base):
     __tablename__ = "countries"

@@ -1,17 +1,18 @@
 from fastapi import FastAPI, Depends, HTTPException, Query, status
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy.orm import Session
-from typing import Optional
+from typing import Optional, List
 import os
 from datetime import datetime, timezone
+
+# Import from current directory - use absolute imports
 from database import get_db, engine, Base, test_connection
 import models
 import schemas
 import services
 import utils
 import crud
-
 
 # Create database tables
 def create_tables():
@@ -143,7 +144,7 @@ def get_countries(
         "population_asc": "population_asc"
     }
     
-    sort_by = sort_mapping.get(sort) # type: ignore
+    sort_by = sort_mapping.get(sort)
     
     countries = crud.get_countries(
         db, 
